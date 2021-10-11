@@ -36,7 +36,11 @@ impl Fraction {
 
 impl std::fmt::Display for Fraction {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}/{}", self.numerator, self.denominator)
+        if self.denominator == 1 {
+            write!(f, "{}", self.numerator)
+        } else {
+            write!(f, "{}/{}", self.numerator, self.denominator)
+        }
     }
 }
 
