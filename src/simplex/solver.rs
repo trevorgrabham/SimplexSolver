@@ -1,4 +1,4 @@
-use crate::simplex::fraction::Fraction;
+use super::fraction::Fraction;
 
 
 pub fn solve(A: Vec<Vec<f64>>, b: Vec<f64>, c: Vec<f64>) -> (Vec<Vec<Fraction>>, Vec<Fraction>, Vec<Fraction>, Fraction) {
@@ -47,7 +47,7 @@ pub fn solve(A: Vec<Vec<f64>>, b: Vec<f64>, c: Vec<f64>) -> (Vec<Vec<Fraction>>,
             for j in 0..m {
                 sum = sum + Fraction::from(A[i][j]) * cB[j].clone();
             }
-            reduced_cost.push(sum);
+            reduced_cost.push(sum-Fraction::from(c[i]));
         }
         for i in 0..m {
             obj = obj + cB[i].clone() * Fraction::from(b[i]);
@@ -100,6 +100,25 @@ fn iterate(A: Vec<Vec<Fraction>>, b: Vec<Fraction>, reduced_cost: Vec<Fraction>,
     let m = A[0].len();
     let n = A.len();
 
+    if DEBUG {
+        for i in 0..m {
+            print!("[\t");
+            for j in 0..n {
+                print!("{}\t", A[j][i]);
+            }
+            print!("|\t{}\t", b[i]);
+            println!("]");
+        }
+        for i in 0..(n+3) {
+            print!("________");
+        } 
+        print!("\n[\t");
+        for i in 0..n {
+            print!("{}\t", reduced_cost[i]);
+        }
+        print!("|\t{}\t", obj);
+        println!("]");
+    }
     // First we find our variable with a negative reduced cost
     // We do this using Bland's rule, so that there will not be cycling
     let mut first_negative_reduced_cost: usize = n;
@@ -168,24 +187,5 @@ fn iterate(A: Vec<Vec<Fraction>>, b: Vec<Fraction>, reduced_cost: Vec<Fraction>,
     // update our objective value function
     new_obj = obj - (b[first_minimum_ratio].clone() * reduced_cost[first_negative_reduced_cost].clone() / A[first_negative_reduced_cost][first_minimum_ratio].clone());
 
-    if DEBUG {
-        for i in 0..m {
-            print!("[\t");
-            for j in 0..n {
-                print!("{}\t", new_A[j][i]);
-            }
-            print!("|\t{}\t", new_b[i]);
-            println!("]");
-        }
-        for i in 0..(n+3) {
-            print!("________");
-        } 
-        print!("\n[\t");
-        for i in 0..n {
-            print!("{}\t", new_reduced_cost[i]);
-        }
-        print!("|\t{}\t", new_obj);
-        println!("]");
-    }
     Some((new_A, new_b, new_reduced_cost, new_obj))
 }
