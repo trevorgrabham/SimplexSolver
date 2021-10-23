@@ -21,7 +21,7 @@ pub struct Fraction {
 
 impl Fraction {
     pub fn new(n: i64, d: i64) -> Fraction {
-        assert_ne!(d,0);
+        assert_ne!(d,0, "Cannot create a fraction with a denominator of 0.");
         Fraction {
             numerator: n,
             denominator: d,
@@ -49,12 +49,36 @@ impl std::ops::Sub for Fraction {
     type Output = Fraction;
 
     fn sub(self, other: Fraction) -> Fraction {
-        let mut res = Fraction {
-            numerator: self.numerator*other.denominator - other.numerator*self.denominator,
-            denominator: self.denominator*other.denominator,
-        };
-        res.reduce();
-        res
+        if self.numerator.abs() == i64::MAX && other.numerator == self.numerator {
+            Fraction::from(0)
+        } else if self.numerator.abs() == i64::MAX {
+            Fraction {
+                numerator: self.numerator,
+                denominator: self.denominator,
+            }
+        } else if other.numerator.abs() == i64::MAX {
+            Fraction {
+                numerator: -other.numerator,
+                denominator: other.denominator,
+            }
+        } else if self.denominator.abs() == i64::MAX {
+            Fraction {
+                numerator: -other.numerator,
+                denominator: other.denominator,
+            }
+        } else if other.denominator.abs() == i64::MAX {
+            Fraction {
+                numerator: self.numerator,
+                denominator: self.denominator,
+            }
+        } else {
+            let mut res = Fraction {
+                numerator: self.numerator*other.denominator - other.numerator*self.denominator,
+                denominator: self.denominator*other.denominator,
+            };
+            res.reduce();
+            res
+        }
     }
 }
 
@@ -137,4 +161,22 @@ impl From<Fraction> for f64 {
     fn from(frac: Fraction) -> f64 {
         frac.numerator as f64 / frac.denominator as f64 
     }
+}
+
+mod fraction_test {
+    #[test]
+
+    fn test_add(){
+
+    }
+    fn test_sub(){
+
+    }
+    fn test_mul(){
+
+    }
+    fn test_div(){
+
+    }
+
 }
