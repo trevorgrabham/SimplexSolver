@@ -49,24 +49,23 @@ impl std::ops::Sub for Fraction {
     type Output = Fraction;
 
     fn sub(self, other: Fraction) -> Fraction {
+        // INF - INF = 0
         if self.numerator.abs() == i64::MAX && other.numerator == self.numerator {
             Fraction::from(0)
         } else if self.numerator.abs() == i64::MAX {
-            Fraction {
-                numerator: self.numerator,
-                denominator: self.denominator,
-            }
+        // INF - other = INF
+            Fraction::from(i64::MAX)
         } else if other.numerator.abs() == i64::MAX {
-            Fraction {
-                numerator: -other.numerator,
-                denominator: other.denominator,
-            }
+        // self - INF = -INF
+            Fraction::from(-i64::MAX)
         } else if self.denominator.abs() == i64::MAX {
+        // 0 - other = -other
             Fraction {
                 numerator: -other.numerator,
                 denominator: other.denominator,
             }
         } else if other.denominator.abs() == i64::MAX {
+        // self - 0 = self
             Fraction {
                 numerator: self.numerator,
                 denominator: self.denominator,
@@ -86,12 +85,39 @@ impl std::ops::Add for Fraction {
     type Output = Fraction;
 
     fn add(self, other: Fraction) -> Fraction {
-        let mut res = Fraction {
-            numerator: self.numerator*other.denominator + other.numerator*self.denominator,
-            denominator: self.denominator*other.denominator,
-        };
-        res.reduce();
-        res
+        // INF - INf = 0
+        if self.numerator.abs() == i64::MAX && other.numerator.abs() == i64::MAX {
+            if (self.numerator > 0 && other.numerator < 0) || (self.numerator < 0 && other.numerator > 0) {
+                Fraction::from(0)
+            } else {
+                Fraction::from(i64::MAX)
+            }
+        } else if self.numerator.abs() == i64::MAX {
+        // +-INF + other = +-INF 
+            Fraction::from(self.numerator)
+        } else if other.numerator.abs() == i64::MAX {
+        // self +- INF = +-INF
+            Fraction::from(other.numerator)
+        } else if self.denominator.abs() == i64::MAX {
+        // 0 + other = other
+            Fraction {
+                numerator: other.numerator,
+                denominator: other.denominator,
+            }
+        } else if other.denominator.abs() == i64::MAX {
+        // self + 0 = self
+            Fraction {
+                numerator: self.numerator,
+                denominator: self.denominator,
+            }
+        } else {
+            let mut res = Fraction {
+                numerator: self.numerator*other.denominator + other.numerator*self.denominator,
+                denominator: self.denominator*other.denominator,
+            };
+            res.reduce();
+            res
+        }
     }
 }
 
