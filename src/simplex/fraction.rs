@@ -32,6 +32,10 @@ impl Fraction {
         let divisor = gcd(self.numerator, self.denominator);
         self.numerator /= divisor;
         self.denominator /= divisor;
+        if self.denominator < 0 {
+            self.numerator *= -1;
+            self.denominator *= -1;
+        }
     }
 }
 
@@ -51,13 +55,29 @@ impl std::ops::Sub for Fraction {
     fn sub(self, other: Fraction) -> Fraction {
         // INF - INF = 0
         if self.numerator.abs() == i64::MAX && other.numerator == self.numerator {
-            Fraction::from(0)
+            if self.numerator > 0 {
+        // INF - INF
+                if other.numerator > 0 {
+                    Fraction::from(0)
+                } else {
+        // INF - -INF
+                    Fraction::from(i64::MAX)
+                }
+            } else {
+        // -INF - INF
+                if other.numerator > 0 {
+                    Fraction::from(-i64::MAX)
+                } else {
+        // -INF - -INF
+                    Fraction::from(0)
+                }
+            }
         } else if self.numerator.abs() == i64::MAX {
         // INF - other = INF
-            Fraction::from(i64::MAX)
+            Fraction::from(self.numerator)
         } else if other.numerator.abs() == i64::MAX {
         // self - INF = -INF
-            Fraction::from(-i64::MAX)
+            Fraction::from(-other.numerator)
         } else if self.denominator.abs() == i64::MAX {
         // 0 - other = -other
             Fraction {
@@ -85,12 +105,23 @@ impl std::ops::Add for Fraction {
     type Output = Fraction;
 
     fn add(self, other: Fraction) -> Fraction {
-        // INF - INf = 0
         if self.numerator.abs() == i64::MAX && other.numerator.abs() == i64::MAX {
-            if (self.numerator > 0 && other.numerator < 0) || (self.numerator < 0 && other.numerator > 0) {
-                Fraction::from(0)
+            if self.numerator == i64::MAX {
+        // INF + INF
+                if other.numerator == i64::MAX {
+                    Fraction::from(i64::MAX)
+                } else {
+        // INF + -INF
+                    Fraction::from(0)
+                }
             } else {
-                Fraction::from(i64::MAX)
+        // -INF + INF
+                if other.numerator == i64::MAX {
+                    Fraction::from(0)
+                } else {
+        // -INF + -INF
+                    Fraction::from(-i64::MAX)
+                }
             }
         } else if self.numerator.abs() == i64::MAX {
         // +-INF + other = +-INF 
@@ -133,27 +164,81 @@ impl std::ops::Mul for Fraction {
                 Fraction::from(i64::MAX)
             }
         } else if self.numerator.abs() == i64::MAX {
-        // INF * 0 = other.numerator/self.denominator
             if other.denominator.abs() == i64::MAX {
-                let mut res = Fraction::new(other.numerator, self.denominator);
-                res.reduce();
-                res
+                if self.numerator > 0 {
+                    if other.numerator > 0 {
+        // INF * 0 = other.numerator/self.denominator
+                        let mut res = Fraction::new(other.numerator, self.denominator);
+                        res.reduce();
+                        res
+                    } else {
+        // INF * -0 = -other.numerator/self.denominator
+                        let mut res = Fraction::new(other.numerator, self.denominator);
+                        res.reduce();
+                        res
+                    }
+                } else {
+                    if other.numerator > 0 {
+        // -INF * 0 = -other.numerator/self.denominator
+                        let mut res = Fraction::new(-other.numerator, self.denominator);
+                        res.reduce();
+                        res
+                    } else {
+        // -INF * -0 = other.numerator/self.denominator
+                        let mut res = Fraction::new(-other.numerator, self.denominator);
+                        res.reduce();
+                        res
+                    }
+                }
             } else {
-        // INF * other = INF
-                Fraction::from(self.numerator)
+                if other.numerator > 0 {
+        // INF * other = -INF || -INf * other = INF
+                    Fraction::from(self.numerator)
+                } else {
+        // INF * -other = INF || -INF * -other = -INF
+                    Fraction::from(-self.numerator)
+                }
+            }
+        } else if self.denominator.abs() == i64::MAX {
+            if other.numerator.abs() == i64::MAX {
+                if self.numerator > 0 {
+                    if other.numerator > 0 {
+        // 0 * INF = self.numerator/other.denominator
+                        let mut res = Fraction::new(self.numerator, other.denominator);
+                        res.reduce();
+                        res
+                    } else {
+        // 0 * -INF = -self.numerator/other.denominator
+                        let mut res = Fraction::new(-self.numerator, other.denominator);
+                        res.reduce();
+                        res
+                    }
+                } else {
+                    if other.numerator > 0 {
+        // -0 * INF = -self.numerator/other.denominator
+                        let mut res = Fraction::new(self.numerator, other.denominator);
+                        res.reduce();
+                        res
+                    } else {
+        // -0 * -INF = self.numerator/other.denominator
+                        let mut res = Fraction::new(-self.numerator, other.denominator);
+                        res.reduce();
+                        res
+                    }
+                }
+            } else {
+        // 0 * other = 0
+                Fraction::from(0) 
             }
         } else if other.numerator.abs() == i64::MAX {
-        // 0 * INF = self.numerator/other.denominator
-            if self.denominator.abs() == i64::MAX {
-                let mut res = Fraction::new(self.numerator, other.denominator);
-                res.reduce();
-                res
-            } else {
-        // self * INF = INF
+            if self.numerator > 0 {
+        // self * INF = INF || self * -INF = -INF 
                 Fraction::from(other.numerator)
+            } else {
+        // -self * INF = -INF || -self * -INF = INF
+                Fraction::from(-other.numerator)
             }
-        } else if self.denominator.abs() == i64::MAX && other.denominator.abs() == i64::MAX {
-        // 0 * 0 = 0
+        } else if other.denominator.abs() == i64::MAX {
             Fraction::from(0)
         } else {
             let mut res = Fraction {
@@ -170,14 +255,26 @@ impl std::ops::Div for Fraction {
     type Output = Fraction;
 
     fn div(self, other: Fraction) -> Fraction {
-        // INF / INF = other.denominator/self.denominator
         if self.numerator.abs() == i64::MAX && other.numerator.abs() == i64::MAX {
-            let mut res = Fraction::new(other.denominator, self.denominator);
-            res.reduce();
-            res
+            if (self.numerator < 0 && other.numerator > 0) || (self.numerator > 0 && other.numerator < 0) {
+        // INF / -INF  || -INF / INF = -other.denominator/self.denominator
+                let mut res = Fraction::new(-other.denominator, self.denominator);
+                res.reduce();
+                res
+            } else {
+        // INF / INF  || -INF / -INF = other.denominator/self.denominator
+                let mut res = Fraction::new(other.denominator, self.denominator);
+                res.reduce();
+                res
+            }
         } else if self.numerator.abs() == i64::MAX {
-        // INF / other = INF
-            Fraction::from(self.numerator)
+            if other.numerator < 0 {
+        // INF / -other  = INF  || -INF / -other = INF
+                Fraction::from(-self.numerator)
+            } else {
+        // INF / other = INF  || -INF / other = -INF
+                Fraction::from(self.numerator)
+            }
         } else if other.numerator.abs() == i64::MAX {
         // self / INF = 0
             Fraction::from(0)
@@ -187,11 +284,22 @@ impl std::ops::Div for Fraction {
             res.reduce();
             res
         } else if other.denominator.abs() == i64::MAX {
-        // self / 0 = INF
             if self.numerator > 0 {
-                Fraction::from(i64::MAX)
+                if other.numerator > 0 {
+        // self / 0 = INF
+                    Fraction::from(i64::MAX)
+                } else {
+        // self / -0 = -INF
+                    Fraction::from(-i64::MAX)
+                }
             } else {
-                Fraction::from(-i64::MAX)
+                if other.numerator > 0 {
+        // -self / 0 = INF
+                    Fraction::from(-i64::MAX)
+                } else {
+        // -self / -0 = INF
+                    Fraction::from(i64::MAX)
+                }
             }
         } else if self.denominator.abs() == i64::MAX {
         // 0 / other = 0
@@ -246,19 +354,148 @@ impl From<Fraction> for f64 {
 }
 
 mod fraction_test {
+    use super::Fraction;
     #[test]
-
-    fn test_add(){
-
+    fn add_inf2(){
+        assert_eq!(Fraction::from(0), Fraction::from(i64::MAX) + Fraction::from(-i64::MAX), "Failed INF + -INF.");
+        assert_eq!(Fraction::from(0), Fraction::from(-i64::MAX) + Fraction::from(i64::MAX), "Failed -INF + INF.");
+        assert_eq!(Fraction::from(i64::MAX), Fraction::from(i64::MAX) + Fraction::from(i64::MAX), "Failed INF + INF.");
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::from(-i64::MAX) + Fraction::from(-i64::MAX), "Failed -INF + -INF.");
     }
-    fn test_sub(){
-
+    #[test]
+    fn add_inf(){
+        assert_eq!(Fraction::from(i64::MAX), Fraction::from(i64::MAX) + Fraction::from(10), "Failed INF + other.");
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::from(-i64::MAX) + Fraction::from(10), "Failed -INF + other.");
+        assert_eq!(Fraction::from(i64::MAX), Fraction::from(10) + Fraction::from(i64::MAX), "Failed self + INF.");
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::from(10) + Fraction::from(-i64::MAX), "Failed self + -INF.");
     }
-    fn test_mul(){
-
+    #[test]
+    fn add_0(){
+        assert_eq!(Fraction::from(8), Fraction::new(1,i64::MAX) + Fraction::from(8), "Failed 0 + other.");
+        assert_eq!(Fraction::from(-8), Fraction::new(1,i64::MAX) + Fraction::from(-8), "Failed 0 + -other.");
+        assert_eq!(Fraction::from(7), Fraction::from(7) + Fraction::new(1,i64::MAX), "Failed self + 0.");
+        assert_eq!(Fraction::from(-7), Fraction::from(-7) + Fraction::new(1,i64::MAX), "Failed -self + 0.");
     }
-    fn test_div(){
-
+    #[test]
+    fn add_standard(){
+        assert_eq!(Fraction::from(17), Fraction::from(7) + Fraction::from(10), "Failed regular addition.");
+        assert_eq!(Fraction::from(-3), Fraction::from(7) + Fraction::from(-10), "Failed regular addition.");
+        assert_eq!(Fraction::from(3), Fraction::from(-7) + Fraction::from(10), "Failed regular addition.");
+        assert_eq!(Fraction::from(-17), Fraction::from(-7) + Fraction::from(-10), "Failed regular addition.");
+    }
+    #[test]
+    fn sub_inf2(){
+        assert_eq!(Fraction::from(0), Fraction::from(i64::MAX) - Fraction::from(i64::MAX), "Failed INF - INF.");
+        assert_eq!(Fraction::from(i64::MAX), Fraction::from(i64::MAX) - Fraction::from(-i64::MAX), "Failed INF - -INF.");
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::from(-i64::MAX) - Fraction::from(i64::MAX), "Failed -INF - INF.");
+        assert_eq!(Fraction::from(0), Fraction::from(-i64::MAX) - Fraction::from(-i64::MAX), "Failed -INF - -INF.");
+    }
+    #[test]
+    fn sub_inf(){
+        assert_eq!(Fraction::from(i64::MAX), Fraction::from(i64::MAX) - Fraction::from(10), "Failed INF - other.");
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::from(-i64::MAX) - Fraction::from(10), "Failed -INF - other.");
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::from(10) - Fraction::from(i64::MAX), "Failed self - INF.");
+        assert_eq!(Fraction::from(i64::MAX), Fraction::from(10) - Fraction::from(-i64::MAX), "Failed self - -INF.");
+    }
+    #[test]
+    fn sub_0(){
+        assert_eq!(Fraction::from(-8), Fraction::new(1,i64::MAX) - Fraction::from(8), "Failed 0 - other.");
+        assert_eq!(Fraction::from(8), Fraction::new(1,i64::MAX) - Fraction::from(-8), "Failed 0 - -other.");
+        assert_eq!(Fraction::from(7), Fraction::from(7) - Fraction::new(1,i64::MAX), "Failed self - 0.");
+        assert_eq!(Fraction::from(-7), Fraction::from(-7) - Fraction::new(1,i64::MAX), "Failed -self - 0.");
+    }
+    #[test]
+    fn sub_standard(){
+        assert_eq!(Fraction::from(-3), Fraction::from(7) - Fraction::from(10), "Failed regular addition.");
+        assert_eq!(Fraction::from(3), Fraction::from(-7) - Fraction::from(-10), "Failed regular addition.");
+        assert_eq!(Fraction::from(17), Fraction::from(7) - Fraction::from(-10), "Failed regular addition.");
+        assert_eq!(Fraction::from(-17), Fraction::from(-7) - Fraction::from(10), "Failed regular addition.");
+    }
+    #[test]
+    fn mul_inf2(){
+        assert_eq!(Fraction::from(i64::MAX), Fraction::from(i64::MAX) * Fraction::from(i64::MAX), "Failed INF * INF.");
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::from(i64::MAX) * Fraction::from(-i64::MAX), "Failed INF * -INF.");
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::from(-i64::MAX) * Fraction::from(i64::MAX), "Failed -INF * INF.");
+        assert_eq!(Fraction::from(i64::MAX), Fraction::from(-i64::MAX) * Fraction::from(-i64::MAX), "Failed -INF * -INF.");
+    }
+    #[test]
+    fn mul_inf0(){
+        assert_eq!(Fraction::new(3,7), Fraction::new(i64::MAX, 7) * Fraction::new(3,i64::MAX), "Failed INF * 0.");
+        assert_eq!(Fraction::new(-3,7), Fraction::new(-i64::MAX, 7) * Fraction::new(3,i64::MAX), "Failed -INF * 0.");
+        assert_eq!(Fraction::new(-3,7), Fraction::new(i64::MAX, 7) * Fraction::new(-3,i64::MAX), "Failed INF * -0.");
+        assert_eq!(Fraction::new(3,7), Fraction::new(-i64::MAX, 7) * Fraction::new(-3,i64::MAX), "Failed -INF * -0.");
+    }
+    #[test]
+    fn mul_0inf(){
+        assert_eq!(Fraction::new(7,3), Fraction::new(7,i64::MAX) * Fraction::new(i64::MAX,3), "Failed 0 * INF.");
+        assert_eq!(Fraction::new(-7,3), Fraction::new(-7,i64::MAX) * Fraction::new(i64::MAX,3), "Failed -0 * INF.");
+        assert_eq!(Fraction::new(-7,3), Fraction::new(7,i64::MAX) * Fraction::new(-i64::MAX,3), "Failed 0 * -INF.");
+        assert_eq!(Fraction::new(7,3), Fraction::new(-7,i64::MAX) * Fraction::new(-i64::MAX,3), "Failed -0 * -INF.");
+    }
+    #[test]
+    fn mul_inf(){
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::from(i64::MAX) * Fraction::from(-2), "Failed INF * -other.");
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::from(-i64::MAX) * Fraction::from(2), "Failed -INF * other.");
+        assert_eq!(Fraction::from(i64::MAX), Fraction::from(-i64::MAX) * Fraction::from(-2), "Failed -INF * -other.");
+        assert_eq!(Fraction::from(i64::MAX), Fraction::from(i64::MAX) * Fraction::from(2), "Failed INF * other.");
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::from(-10) * Fraction::from(i64::MAX), "Failed -self * INF.");
+        assert_eq!(Fraction::from(i64::MAX), Fraction::from(-10) * Fraction::from(-i64::MAX), "Failed -self * -INF.");
+        assert_eq!(Fraction::from(i64::MAX), Fraction::from(10) * Fraction::from(i64::MAX), "Failed self * INF.");
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::from(10) * Fraction::from(-i64::MAX), "Failed self * -INF.");
+    }
+    #[test]
+    fn mul_0(){
+        assert_eq!(Fraction::from(0), Fraction::new(1,i64::MAX) * Fraction::from(8), "Failed 0 * other.");
+        assert_eq!(Fraction::from(0), Fraction::from(7) * Fraction::new(1,i64::MAX), "Failed self * 0.");
+    }
+    #[test]
+    fn mul_standard(){
+        assert_eq!(Fraction::from(21), Fraction::from(7) * Fraction::from(3), "Failed regular addition.");
+        assert_eq!(Fraction::from(-21), Fraction::from(-7) * Fraction::from(3), "Failed regular addition.");
+        assert_eq!(Fraction::from(-21), Fraction::from(7) * Fraction::from(-3), "Failed regular addition.");
+        assert_eq!(Fraction::from(21), Fraction::from(-7) * Fraction::from(-3), "Failed regular addition.");
+    }
+    #[test]
+    fn div_inf2(){
+        assert_eq!(Fraction::new(3,7), Fraction::new(i64::MAX, 7) / Fraction::new(i64::MAX, 3), "Failed INF / INF.");
+        assert_eq!(Fraction::new(-3,7), Fraction::new(-i64::MAX, 7) / Fraction::new(i64::MAX, 3), "Failed -INF / INF.");
+        assert_eq!(Fraction::new(-3,7), Fraction::new(i64::MAX, 7) / Fraction::new(-i64::MAX, 3), "Failed INF / -INF.");
+        assert_eq!(Fraction::new(3,7), Fraction::new(-i64::MAX, 7) / Fraction::new(-i64::MAX, 3), "Failed -INF / -INF.");
+    }
+    #[test]
+    fn div_inf0(){
+        assert_eq!(Fraction::from(i64::MAX), Fraction::new(i64::MAX, 7) / Fraction::new(3,i64::MAX), "Failed INF / 0.");
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::new(-i64::MAX, 7) / Fraction::new(3,i64::MAX), "Failed -INF / 0.");
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::new(i64::MAX, 7) / Fraction::new(-3,i64::MAX), "Failed INF / -0.");
+        assert_eq!(Fraction::from(i64::MAX), Fraction::new(-i64::MAX, 7) / Fraction::new(-3,i64::MAX), "Failed -INF / -0.");
+    }
+    #[test]
+    fn div_0inf(){
+        assert_eq!(Fraction::from(0), Fraction::new(7,i64::MAX) / Fraction::new(i64::MAX,3), "Failed 0 / INF.");
+    }
+    #[test]
+    fn div_inf(){
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::from(i64::MAX) / Fraction::from(-2), "Failed INF / -other.");
+        assert_eq!(Fraction::from(i64::MAX), Fraction::from(-i64::MAX) / Fraction::from(-2), "Failed -INF / -other.");
+        assert_eq!(Fraction::from(i64::MAX), Fraction::from(i64::MAX) / Fraction::from(2), "Failed INF / other.");
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::from(-i64::MAX) / Fraction::from(2), "Failed -INF / other.");
+        assert_eq!(Fraction::from(0), Fraction::from(-10) / Fraction::from(i64::MAX), "Failed -self / INF.");
+        assert_eq!(Fraction::from(0), Fraction::from(10) / Fraction::from(i64::MAX), "Failed self / INF.");
+    }
+    #[test]
+    fn div_0(){
+        assert_eq!(Fraction::from(0), Fraction::new(1,i64::MAX) / Fraction::from(8), "Failed 0 / other.");
+        assert_eq!(Fraction::from(i64::MAX), Fraction::from(7) / Fraction::new(1,i64::MAX), "Failed self / 0.");
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::from(-7) / Fraction::new(1,i64::MAX), "Failed -self / 0.");
+        assert_eq!(Fraction::from(-i64::MAX), Fraction::from(7) / Fraction::new(-1,i64::MAX), "Failed self / -0.");
+        assert_eq!(Fraction::from(i64::MAX), Fraction::from(-7) / Fraction::new(-1,i64::MAX), "Failed -self / -0.");
+    }
+    #[test]
+    fn div_standard(){
+        assert_eq!(Fraction::new(7,3), Fraction::from(7) / Fraction::from(3), "Failed regular addition.");
+        assert_eq!(Fraction::new(-7,3), Fraction::from(-7) / Fraction::from(3), "Failed regular addition.");
+        assert_eq!(Fraction::new(-7,3), Fraction::from(7) / Fraction::from(-3), "Failed regular addition.");
+        assert_eq!(Fraction::new(7,3), Fraction::from(-7) / Fraction::from(-3), "Failed regular addition.");
     }
 
 }
