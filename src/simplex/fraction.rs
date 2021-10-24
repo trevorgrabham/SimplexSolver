@@ -319,7 +319,13 @@ impl ops::Div for Fraction {
 
 impl PartialOrd for Fraction {
     fn partial_cmp(&self, other: &Fraction) -> Option<cmp::Ordering> {
-        Some((self.numerator*other.denominator).cmp(&(other.numerator*self.denominator)))
+        if self.numerator.abs() == i64::MAX || other.numerator.abs() == i64::MAX {
+            Some(self.numerator.cmp(&other.numerator))
+        } else if self.denominator.abs() == i64::MAX || other.denominator.abs() == i64::MAX {
+            Some(other.denominator.cmp(&self.denominator))
+        } else {
+            Some((self.numerator*other.denominator).cmp(&(other.numerator*self.denominator)))
+        }
     }
 }
 
@@ -498,6 +504,18 @@ mod fraction_test {
         assert_eq!(Fraction::new(-7,3), Fraction::from(-7) / Fraction::from(3), "Failed regular addition.");
         assert_eq!(Fraction::new(-7,3), Fraction::from(7) / Fraction::from(-3), "Failed regular addition.");
         assert_eq!(Fraction::new(7,3), Fraction::from(-7) / Fraction::from(-3), "Failed regular addition.");
+    }
+    #[test]
+    fn comparisons() {
+        assert!(Fraction::new(1,3) > Fraction::new(1, 4));
+        assert!(Fraction::new(1,6) > Fraction::new(1, 10));
+        assert!(Fraction::new(1,i64::MAX) < Fraction::new(1, 4));
+        assert!(Fraction::from(i64::MAX) > Fraction::from(4));
+        assert!(Fraction::from(-i64::MAX) < Fraction::new(1, 4));
+        assert!(Fraction::from(-i64::MAX) == Fraction::from(-i64::MAX));
+        assert!(Fraction::from(1) > Fraction::from(-i64::MAX));
+        assert!(Fraction::from(-i64::MAX) < Fraction::new(1,-i64::MAX));
+        assert!(Fraction::from(i64::MAX) > Fraction::new(1,i64::MAX));
     }
 
 }
