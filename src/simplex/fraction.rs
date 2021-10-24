@@ -170,12 +170,40 @@ impl std::ops::Div for Fraction {
     type Output = Fraction;
 
     fn div(self, other: Fraction) -> Fraction {
+        // INF / INF = other.denominator/self.denominator
+        if self.numerator.abs() == i64::MAX && other.numerator.abs() == i64::MAX {
+            let mut res = Fraction::new(other.denominator, self.denominator);
+            res.reduce();
+            res
+        } else if self.numerator.abs() == i64::MAX {
+        // INF / other = INF
+            Fraction::from(self.numerator)
+        } else if other.numerator.abs() == i64::MAX {
+        // self / INF = 0
+            Fraction::from(0)
+        } else if self.denominator.abs() == i64::MAX && other.denominator.abs() == i64::MAX {
+        // 0 / 0 = self.numerator/other.numerator
+            let mut res = Fraction::new(self.numerator, other.numerator);
+            res.reduce();
+            res
+        } else if other.denominator.abs() == i64::MAX {
+        // self / 0 = INF
+            if self.numerator > 0 {
+                Fraction::from(i64::MAX)
+            } else {
+                Fraction::from(-i64::MAX)
+            }
+        } else if self.denominator.abs() == i64::MAX {
+        // 0 / other = 0
+            Fraction::from(0)
+        } else {
             let mut res = Fraction {
                 numerator: self.numerator * other.denominator,
                 denominator: self.denominator * other.numerator,
             };
             res.reduce();
             res
+        }
     }
 }
 
