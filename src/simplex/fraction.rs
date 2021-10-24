@@ -209,11 +209,7 @@ impl std::ops::Div for Fraction {
 
 impl PartialOrd for Fraction {
     fn partial_cmp(&self, other: &Fraction) -> Option<std::cmp::Ordering> {
-        if self.numerator == i64::MAX || self.numerator == -i64::MAX || other.numerator == i64::MAX || other.numerator == -i64::MAX {
-            Some(self.numerator.cmp(&other.numerator))
-        } else {
-            Some((self.numerator*other.denominator).cmp(&(other.numerator*self.denominator)))
-        }
+        Some((self.numerator*other.denominator).cmp(&(other.numerator*self.denominator)))
     }
 }
 
