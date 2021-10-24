@@ -1,3 +1,5 @@
+use std::{fmt,ops,cmp};
+
 fn gcd(a: i64, b:i64) -> i64 {
     // Euclidean algorithm
     if b == 0{
@@ -28,7 +30,7 @@ impl Fraction {
         }
     }
 
-    pub fn reduce(&mut self){
+    fn reduce(&mut self){
         let divisor = gcd(self.numerator, self.denominator);
         self.numerator /= divisor;
         self.denominator /= divisor;
@@ -39,8 +41,8 @@ impl Fraction {
     }
 }
 
-impl std::fmt::Display for Fraction {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for Fraction {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if self.denominator == 1 {
             write!(f, "{}", self.numerator)
         } else {
@@ -49,7 +51,7 @@ impl std::fmt::Display for Fraction {
     }
 }
 
-impl std::ops::Sub for Fraction {
+impl ops::Sub for Fraction {
     type Output = Fraction;
 
     fn sub(self, other: Fraction) -> Fraction {
@@ -101,7 +103,7 @@ impl std::ops::Sub for Fraction {
     }
 }
 
-impl std::ops::Add for Fraction {
+impl ops::Add for Fraction {
     type Output = Fraction;
 
     fn add(self, other: Fraction) -> Fraction {
@@ -152,7 +154,7 @@ impl std::ops::Add for Fraction {
     }
 }
 
-impl std::ops::Mul for Fraction {
+impl ops::Mul for Fraction {
     type Output = Fraction;
 
     fn mul(self, other: Fraction) -> Fraction {
@@ -251,7 +253,7 @@ impl std::ops::Mul for Fraction {
     }
 }
 
-impl std::ops::Div for Fraction {
+impl ops::Div for Fraction {
     type Output = Fraction;
 
     fn div(self, other: Fraction) -> Fraction {
@@ -316,7 +318,7 @@ impl std::ops::Div for Fraction {
 }
 
 impl PartialOrd for Fraction {
-    fn partial_cmp(&self, other: &Fraction) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Fraction) -> Option<cmp::Ordering> {
         Some((self.numerator*other.denominator).cmp(&(other.numerator*self.denominator)))
     }
 }
