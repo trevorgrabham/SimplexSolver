@@ -11,18 +11,7 @@ pub fn solve(A: Vec<Vec<f64>>, b: Vec<f64>, c: Vec<f64>) -> (Vec<Vec<Fraction>>,
     let n: usize = A.len();
 
     // scan to find the rows corresponding to I
-    let mut B: Vec<usize> = vec![n+1;m];
-    let mut I = vec![0f64;m];
-    I[0] = 1f64;
-
-    for i in 0..n {
-        for j in 0..m {
-            if I == A[i] {
-                B[j] = i;
-            }
-            I.rotate_right(1);
-        }
-    }
+    let B: Vec<usize> = find_basis(&A);
 
     for i in 0..m {
         assert_ne!(B[i], n+1, "We could not find a column in A corresponding to the {}th row of an identity matrix", i);
@@ -31,33 +20,11 @@ pub fn solve(A: Vec<Vec<f64>>, b: Vec<f64>, c: Vec<f64>) -> (Vec<Vec<Fraction>>,
     // The indecies corresponding to the identity matrix are stored in order
 
     // Computing the cost vector corresponding to our basis matrix B
-    let mut cB = Vec::with_capacity(m);
-    for i in 0..m {
-        cB.push(Fraction::from(c[B[i]]));
-    }
+    let cB = get_cost_basis(&c, &B);
 
     // set up our reduced_cost vector and our objective value.
     // these are updated using our cost basis vector, and doing matrix multiplaction.
-    let mut reduced_cost: Vec<Fraction> = Vec::with_capacity(n);
-    let mut obj: Fraction = Fraction::from(0);
-
-    if cB != vec![Fraction::from(0i64);m] {
-        for i in 0..n {
-            let mut sum = Fraction::from(0);
-            for j in 0..m {
-                sum = sum + Fraction::from(A[i][j]) * cB[j].clone();
-            }
-            reduced_cost.push(sum-Fraction::from(c[i]));
-        }
-        for i in 0..m {
-            obj = obj + cB[i].clone() * Fraction::from(b[i]);
-        }
-    } else {
-        for i in 0..n {
-            reduced_cost.push(Fraction::from(-c[i]));
-        }
-    }
-
+    let (reduced_cost, obj) = compute_reduced_cost(&cB, &A, &b, &c);
 
     // set up our variables to be sent off to the iterative stage. 
     // made clones so that we can hand over ownership to the iterate function.
@@ -139,7 +106,7 @@ fn iterate(A: Vec<Vec<Fraction>>, b: Vec<Fraction>, reduced_cost: Vec<Fraction>,
     // We now have to find our minimum ratio after selecting our entering variable
     // In the case of a tie, we use Bland's rule and select the first in the sequence
     let mut first_minimum_ratio = n;
-    let mut minimum_ratio = Fraction::from(f64::INFINITY);
+    let mut minimum_ratio = Fraction::from(i64::MAX);
     for i in 0..m {
         if A[first_negative_reduced_cost][i] > Fraction::from(0f64) && b[i].clone()/A[first_negative_reduced_cost][i].clone() < minimum_ratio {
             minimum_ratio = b[i].clone()/A[first_negative_reduced_cost][i].clone();
@@ -188,4 +155,58 @@ fn iterate(A: Vec<Vec<Fraction>>, b: Vec<Fraction>, reduced_cost: Vec<Fraction>,
     new_obj = obj - (b[first_minimum_ratio].clone() * reduced_cost[first_negative_reduced_cost].clone() / A[first_negative_reduced_cost][first_minimum_ratio].clone());
 
     Some((new_A, new_b, new_reduced_cost, new_obj))
+}
+
+// scans the columns of A, finding the identity matrix columns within. 
+// B[i] = n+1, when it is unable to find the i+1th column of the Identity matrix
+fn find_basis(A: &Vec<Vec<f64>>) -> Vec<usize> {
+    let m = A[0].len();
+    let n = A.len();
+    let mut B: Vec<usize> = vec![n+1 as usize;m];
+    let mut I = vec![0f64;m];
+    I[0] = 1f64;
+
+    for i in 0..n {
+        for j in 0..m {
+            if I == A[i] {
+                B[j] = i;
+            }
+            I.rotate_right(1);
+        }
+    }
+
+    B
+}
+
+fn get_cost_basis(c: &Vec<f64>, B: &Vec<usize>) -> Vec<Fraction> {
+    let m = B.len();
+    let mut cB = Vec::with_capacity(m);
+    for i in 0..m {
+        cB.push(Fraction::from(c[B[i]]));
+    }
+    cB
+}
+
+fn compute_reduced_cost(cB: &Vec<Fraction>, A: &Vec<Vec<f64>>, b: &Vec<f64>, c: &Vec<f64>) -> (Vec<Fraction>, Fraction) {
+    let n = A.len();
+    let m = A[0].len();
+    let mut reduced_cost = Vec::with_capacity(n);
+    let mut obj: Fraction = Fraction::from(0);
+    if *cB != vec![Fraction::from(0i64);m] {
+        for i in 0..n {
+            let mut sum = Fraction::from(0);
+            for j in 0..m {
+                sum = sum + Fraction::from(A[i][j]) * cB[j].clone();
+            }
+            reduced_cost.push(sum-Fraction::from(c[i]));
+        }
+        for i in 0..m {
+            obj = obj + cB[i].clone() * Fraction::from(b[i]);
+        }
+    } else {
+        for i in 0..n {
+            reduced_cost.push(Fraction::from(-c[i]));
+        }
+    }
+    (reduced_cost, obj)
 }
