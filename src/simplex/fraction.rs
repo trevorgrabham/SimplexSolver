@@ -125,7 +125,7 @@ impl std::ops::Mul for Fraction {
     type Output = Fraction;
 
     fn mul(self, other: Fraction) -> Fraction {
-        // INF * INF
+        // INF * INF = INF
         if self.numerator.abs() == i64::MAX && other.numerator.abs() == i64::MAX {
             if (self.numerator > 0 && other.numerator < 0) || (self.numerator < 0 && other.numerator > 0) {
                 Fraction::from(-i64::MAX)
@@ -133,27 +133,27 @@ impl std::ops::Mul for Fraction {
                 Fraction::from(i64::MAX)
             }
         } else if self.numerator.abs() == i64::MAX {
-        // INF * 0
+        // INF * 0 = other.numerator/self.denominator
             if other.denominator.abs() == i64::MAX {
                 let mut res = Fraction::new(other.numerator, self.denominator);
                 res.reduce();
                 res
             } else {
-        // INF * other
+        // INF * other = INF
                 Fraction::from(self.numerator)
             }
         } else if other.numerator.abs() == i64::MAX {
-        // 0 * INF
+        // 0 * INF = self.numerator/other.denominator
             if self.denominator.abs() == i64::MAX {
                 let mut res = Fraction::new(self.numerator, other.denominator);
                 res.reduce();
                 res
             } else {
-        // self * INF
+        // self * INF = INF
                 Fraction::from(other.numerator)
             }
         } else if self.denominator.abs() == i64::MAX && other.denominator.abs() == i64::MAX {
-        // 0 * 0 
+        // 0 * 0 = 0
             Fraction::from(0)
         } else {
             let mut res = Fraction {
