@@ -1,2 +1,2 @@
-pub mod solver;
+pub mod tableau;
 pub mod fraction;
