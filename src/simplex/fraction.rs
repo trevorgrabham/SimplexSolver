@@ -24,9 +24,27 @@ pub struct Fraction {
 impl Fraction {
     pub fn new(n: i64, d: i64) -> Fraction {
         assert_ne!(d,0, "Cannot create a fraction with a denominator of 0.");
-        Fraction {
+        let mut res = Fraction {
             numerator: n,
             denominator: d,
+        };
+        // we don't want to be reducing our fractions if we are dealing with an infinite value.
+        if n.abs() != i64::MAX && d.abs() != i64::MAX {
+            res.reduce();
+            res
+        } else {
+            res
+        }
+    }
+
+    pub fn abs(&self) -> Self {
+        if self.numerator < 0i64 {
+            Fraction {
+                numerator: -self.numerator,
+                denominator: self.denominator,
+            }
+        } else {
+            self.clone()
         }
     }
 
@@ -532,5 +550,11 @@ mod fraction_test {
     fn negation() {
         assert_eq!(Fraction::from(1), -Fraction::from(-1));
         assert_eq!(Fraction::from(-7), -Fraction::from(7));
+    }
+    #[test]
+    fn absolute() {
+        assert_eq!(Fraction::new(3,4), Fraction::new(-3, 4).abs());
+        assert_eq!(Fraction::new(4,3), Fraction::new(4,-3).abs());
+        assert_eq!(Fraction::new(3,7), Fraction::new(3,7).abs());
     }
 }
