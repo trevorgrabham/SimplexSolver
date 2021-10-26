@@ -4,6 +4,7 @@ use super::fraction::Fraction;
 enum SolveMessage {
     Optimal,
     Unbounded,
+    Phase1Complete,
     None,
 }
 
@@ -23,6 +24,7 @@ pub struct Tableau {
 
     basis_index: Vec<usize>,
     cost_basis: Vec<Fraction>,
+    big_M_c: Vec<Fraction>,
     original_basis_index: Vec<usize>,
 
     basis_inverse: Vec<Vec<Fraction>>,
@@ -32,6 +34,7 @@ pub struct Tableau {
     row_index: usize,
 
     solved: bool, 
+    big_M: bool,
     additional_info: SolveMessage,
 }
 
@@ -46,7 +49,7 @@ impl Tableau {
             m: A[0].len(),
             n: A.len(),
             solve_type: solve_type,
-            debug: false,
+            debug: true,
             A: Vec::with_capacity(A.len()),
             b: Vec::with_capacity(A[0].len()),
             c: Vec::with_capacity(A.len()),
@@ -54,6 +57,8 @@ impl Tableau {
             obj: Fraction::from(0),
             basis_index: vec![A.len()+1 as usize;A[0].len()],
             cost_basis: Vec::with_capacity(A.len()),
+            big_M_c: Vec::with_capacity(A.len()),
+            big_M: false,
             original_basis_index: vec![A.len()+1 as usize;A[0].len()],
             basis_inverse: Vec::with_capacity(A[0].len()),
             solution: Vec::with_capacity(A.len()),
@@ -65,7 +70,13 @@ impl Tableau {
 
         for i in 0..t.n {
             t.A.push(Vec::with_capacity(t.m));
-            t.c.push(Fraction::from(c[i]));
+            if c[i] == f64::MAX {
+                t.c.push(Fraction::from(i64::MAX));
+            } else if c[i] == -f64::MAX {
+                t.c.push(Fraction::from(-i64::MAX));
+            } else {
+                t.c.push(Fraction::from(c[i]));
+            }
             for j in 0..t.m {
                 t.A[i].push(Fraction::from(A[i][j]));
                 t.b.push(Fraction::from(b[j]));
@@ -96,17 +107,54 @@ impl Tableau {
     pub fn solve(&mut self) {
         match self.solve_type.as_str() {
             "bland" => {
+                if self.debug {
+                    println!("Phase 1:");
+                }
                 while !self.solved {
                     self.print_table();
                     self.bland_reduced_cost();
                     if self.solved {
-                        self.print_solution();
-                        return;
+                        if self.big_M {
+                            if self.obj != Fraction::from(0) {
+                                println!("Linear program is infeasible.");
+                                return;
+                            } else {
+                                self.big_M = false;
+                                self.solved = false;
+                                self.cost_basis = Vec::with_capacity(self.m);
+                                self.reduced_cost = Vec::with_capacity(self.n);
+                                println!("Phase 2:");
+                                self.get_cost_basis();
+                                self.compute_reduced_cost();
+                                continue;
+                            }
+                        } else {
+                            self.print_solution();
+                            return;
+                        }
                     }
                     self.find_min_ratio();
                     if self.solved {
-                        self.print_solution();
-                        return;
+                        if self.big_M {
+                            if self.obj != Fraction::from(0) {
+                                println!("Linear program is infeasible.");
+                                return;
+                            } else {
+                                self.big_M = false;
+                                self.solved = false;
+                                self.cost_basis = Vec::with_capacity(self.m);
+                                self.reduced_cost = Vec::with_capacity(self.n);
+                                println!("Phase 2:");
+                                self.get_cost_basis();
+                                self.compute_reduced_cost();
+                                self.bland_reduced_cost();
+                                self.find_min_ratio();
+                                continue;
+                            }
+                        } else {
+                            self.print_solution();
+                            return;
+                        }
                     }
                     self.update();
                 }
@@ -185,8 +233,29 @@ impl Tableau {
     }
 
     fn get_cost_basis(&mut self) {
+        for i in 0..self.n {
+            if self.c[i].abs() == Fraction::from(i64::MAX) {
+                self.big_M_c.push(Fraction::from(-1));
+            } else {
+                self.big_M_c.push(Fraction::from(0));
+            }
+        }
         for i in 0..self.m {
-            self.cost_basis.push(Fraction::from(self.c[self.basis_index[i]].clone()));
+            if self.c[self.basis_index[i]].abs() == Fraction::from(i64::MAX) {
+                self.big_M = true;
+                if self.debug {
+                    println!("Working with Big M!");
+                }
+            }
+        }
+        if self.big_M {
+            for i in 0..self.m {
+                self.cost_basis.push(self.big_M_c[self.basis_index[i]].clone());
+            }
+        } else {
+            for i in 0..self.m {
+                self.cost_basis.push(self.c[self.basis_index[i]].clone());
+            }
         }
         if self.debug {
             print!("Cost basis: [");
@@ -213,7 +282,11 @@ impl Tableau {
                 for j in 0..self.m {
                     sum = sum + Fraction::from(self.A[i][j].clone()) * self.cost_basis[j].clone();
                 }
-                self.reduced_cost.push(Fraction::from(sum)-self.c[i].clone());
+                if self.big_M {
+                    self.reduced_cost.push(Fraction::from(sum)-self.big_M_c[i].clone());
+                } else {
+                    self.reduced_cost.push(Fraction::from(sum)-self.c[i].clone());
+                }
             }
             self.obj = Fraction::from(0);
             for i in 0..self.m {
@@ -358,7 +431,13 @@ impl Tableau {
         } 
         print!("\n[\t");
         for i in 0..self.n {
-            print!("{}\t", self.reduced_cost[i]);
+            if self.reduced_cost[i] == Fraction::from(i64::MAX) {
+                print!("M\t");
+            } else if self.reduced_cost[i] == Fraction::from(-i64::MAX) {
+                print!("-M\t");
+            } else {
+                print!("{}\t", self.reduced_cost[i]);
+            }
         }
         print!("|\t{}\t", self.obj);
         println!("]\n");
@@ -408,4 +487,3 @@ impl Tableau {
         }
     }
 }
-
