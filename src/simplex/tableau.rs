@@ -107,7 +107,7 @@ impl Tableau {
     pub fn solve(&mut self) {
         match self.solve_type.as_str() {
             "bland" => {
-                if self.debug {
+                if self.debug && self.big_M {
                     println!("Phase 1:");
                 }
                 while !self.solved {
