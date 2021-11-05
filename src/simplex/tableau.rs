@@ -45,7 +45,11 @@ impl Tableau {
         assert_eq!(A.len(), c.len(), "A and c matrices are not compatable. c is 1x{} and A is {}x{}", c.len(), A[0].len(), A.len());
         assert_eq!(A[0].len(), b.len(), "A and b matrices are not compatable. A is {}x{} and b is {}x1", A[0].len(), A.len(), b.len());
         for i in 0..b.len() {
-            assert!(b[i] >= 0f64, "{}th entry in b is negative. Linear program is not in starndard form", i+1);
+            match i%10 {
+                0 => {assert!(b[i] >= 0f64, "{}st entry in b is negative. Linear program is not in starndard form", i+1);},
+                1 => {assert!(b[i] >= 0f64, "{}nd entry in b is negative. Linear program is not in starndard form", i+1);},
+                _ => {assert!(b[i] >= 0f64, "{}th entry in b is negative. Linear program is not in starndard form", i+1);},
+            }
         }
 
         let mut t = Tableau {
@@ -226,7 +230,11 @@ impl Tableau {
         }
         // check that we got all the corresponding columns
         for i in 0..self.m {
-            assert_ne!(self.basis_index[i], self.n+1, "We could not find a column in A corresponding to the {}th row of an identity matrix", i+1);
+            match i%10 {
+                0 => {assert_ne!(self.basis_index[i], self.n+1, "We could not find a column in A corresponding to the {}st row of an identity matrix", i+1);},
+                1 => {assert_ne!(self.basis_index[i], self.n+1, "We could not find a column in A corresponding to the {}nd row of an identity matrix", i+1);},
+                _ => {assert_ne!(self.basis_index[i], self.n+1, "We could not find a column in A corresponding to the {}th row of an identity matrix", i+1);},
+            }
         }
         if self.debug {
             print!("basis indecies: [");
