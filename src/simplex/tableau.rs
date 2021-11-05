@@ -44,6 +44,9 @@ impl Tableau {
         // Will not need this anymore once I get the input from a website. 
         assert_eq!(A.len(), c.len(), "A and c matrices are not compatable. c is 1x{} and A is {}x{}", c.len(), A[0].len(), A.len());
         assert_eq!(A[0].len(), b.len(), "A and b matrices are not compatable. A is {}x{} and b is {}x1", A[0].len(), A.len(), b.len());
+        for i in 0..b.len() {
+            assert!(b[i] >= 0f64, "{}th entry in b is negative. Linear program is not in starndard form", i+1);
+        }
 
         let mut t = Tableau {
             m: A[0].len(),
@@ -79,9 +82,11 @@ impl Tableau {
             }
             for j in 0..t.m {
                 t.A[i].push(Fraction::from(A[i][j]));
-                t.b.push(Fraction::from(b[j]));
-                t.basis_inverse.push(Vec::with_capacity(t.m));
             }
+        }
+        for i in 0..t.m {
+            t.b.push(Fraction::from(b[i]));
+            t.basis_inverse.push(Vec::with_capacity(t.m));
         }
         if t.debug {
             print!("Cost vector: [");
@@ -221,7 +226,7 @@ impl Tableau {
         }
         // check that we got all the corresponding columns
         for i in 0..self.m {
-            assert_ne!(self.basis_index[i], self.n+1, "We could not find a column in A corresponding to the {}th row of an identity matrix", i);
+            assert_ne!(self.basis_index[i], self.n+1, "We could not find a column in A corresponding to the {}th row of an identity matrix", i+1);
         }
         if self.debug {
             print!("basis indecies: [");
