@@ -62,16 +62,18 @@ pub struct Tableau {
 }
 
 impl Tableau {
-    pub fn new(A: &Vec<Vec<f64>>, b: &Vec<f64>, c: &Vec<f64>, solve_type: String, variable_select_type: String, big_M_solve_type: String) -> Tableau {
+    pub fn new(A: &Vec<Vec<f64>>, b: &Vec<f64>, c: &Vec<f64>, variable_select_type: String, solve_type: String, big_M_solve_type: String) -> Tableau {
         // Checks to make sure that the dimensions of our matrices are valid.
         // Will not need this anymore once I get the input from a website. 
         assert_eq!(A.len(), c.len(), "A and c matrices are not compatable. c is 1x{} and A is {}x{}", c.len(), A[0].len(), A.len());
         assert_eq!(A[0].len(), b.len(), "A and b matrices are not compatable. A is {}x{} and b is {}x1", A[0].len(), A.len(), b.len());
-        for i in 0..b.len() {
-            match i%10 {
-                0 => {assert!(b[i] >= 0f64, "{}st entry in b is negative. Linear program is not in starndard form", i+1);},
-                1 => {assert!(b[i] >= 0f64, "{}nd entry in b is negative. Linear program is not in starndard form", i+1);},
-                _ => {assert!(b[i] >= 0f64, "{}th entry in b is negative. Linear program is not in starndard form", i+1);},
+        if solve_type.as_str() != "dual" {
+            for i in 0..b.len() {
+                match i%10 {
+                    0 => {assert!(b[i] >= 0f64, "{}st entry in b is negative. Linear program is not in starndard form", i+1);},
+                    1 => {assert!(b[i] >= 0f64, "{}nd entry in b is negative. Linear program is not in starndard form", i+1);},
+                    _ => {assert!(b[i] >= 0f64, "{}th entry in b is negative. Linear program is not in starndard form", i+1);},
+                }
             }
         }
 
@@ -164,6 +166,7 @@ impl Tableau {
 
     pub fn solve(&mut self) {
         if self.big_M {
+            println!("Working with Big M");
             match self.big_M_solve_type {
                 BigMSolveType::Detatched => {
 
@@ -270,10 +273,22 @@ impl Tableau {
                     }
                 },
                 SolveType::Revised => {
-
                 },
                 SolveType::Dual => {
-
+                    while !self.solved {
+                        self.print_table();
+                        self.compute_leaving_variable();
+                        if self.solved {
+                            self.print_solution();
+                            return;
+                        }
+                        self.compute_entering_variable();
+                        if self.solved {
+                            self.print_solution();
+                            return;
+                        }
+                        self.update();
+                    }
                 },
             }
         }
@@ -433,77 +448,126 @@ impl Tableau {
 
     // will set solved=true if the linear program is optimal
     fn compute_entering_variable(&mut self) {
-        match self.variable_select_type {
-            VariableSelectType::Bland => {
-
-                // find the first negative reduced cost and return
+        match self.solve_type {
+            SolveType::Dual => {
+                let mut max_ratio = Fraction::from(-i64::MAX);
                 for col in 0..self.n {
-                    if self.reduced_cost[col] < Fraction::from(0i64) {
+                    if self.A[col][self.leaving_variable_index] < Fraction::from(0) && self.reduced_cost[col].clone()/self.A[col][self.leaving_variable_index].clone() > max_ratio {
+                        max_ratio = self.reduced_cost[col].clone()/self.A[col][self.leaving_variable_index].clone();
                         self.entering_variable_index = col;
-                        if self.debug {
-                            println!("Entering variable index: {:?}", self.entering_variable_index+1);
-                        }
-                        return;
                     }
                 }
-            },
-            VariableSelectType::Standard => {
-
-                // find the most negative reduced cost
-                let mut most_negative_value = Fraction::from(0);
-                self.entering_variable_index = self.n;
-                for col in 0..self.n {
-                    if self.reduced_cost[col] < most_negative_value {
-                        self.entering_variable_index = col;
-                        most_negative_value = Fraction::from(self.reduced_cost[col].clone());
-                    }
+                
+                if max_ratio == Fraction::from(-i64::MAX) {
+                    self.solved = true;
+                    self.additional_info = SolveMessage::Infeasible;
                 }
-                if self.entering_variable_index != self.n {
-                    if self.debug {
+                
+                if self.debug {
+                    if self.debug && !self.solved {
                         println!("Entering variable index: {:?}", self.entering_variable_index+1);
                     }
-                    return;
                 }
             },
-        }
+            _ => {
+                match self.variable_select_type {
+                    VariableSelectType::Bland => {
+
+                        // find the first negative reduced cost and return
+                        for col in 0..self.n {
+                            if self.reduced_cost[col] < Fraction::from(0i64) {
+                                self.entering_variable_index = col;
+                                if self.debug {
+                                    println!("Entering variable index: {:?}", self.entering_variable_index+1);
+                                }
+                                return;
+                            }
+                        }
+                    },
+                    VariableSelectType::Standard => {
+
+                        // find the most negative reduced cost
+                        let mut most_negative_value = Fraction::from(0);
+                        self.entering_variable_index = self.n;
+                        for col in 0..self.n {
+                            if self.reduced_cost[col] < most_negative_value {
+                                self.entering_variable_index = col;
+                                most_negative_value = Fraction::from(self.reduced_cost[col].clone());
+                            }
+                        }
+                        if self.entering_variable_index != self.n {
+                            if self.debug {
+                                println!("Entering variable index: {:?}", self.entering_variable_index+1);
+                            }
+                            return;
+                        }
+                    },
+                }
     
-        // if we could not find a negative reduced cost, then our solution is optimal
-        self.solved = true;
-        if self.big_M && self.big_M_solve_type == BigMSolveType::TwoPhase && self.obj != Fraction::from(0) {
-            self.additional_info = SolveMessage::Infeasible;
-        } else {
-            self.additional_info = SolveMessage::Optimal;
+                // if we could not find a negative reduced cost, then our solution is optimal
+                self.solved = true;
+                if self.big_M && self.big_M_solve_type == BigMSolveType::TwoPhase && self.obj != Fraction::from(0) {
+                    self.additional_info = SolveMessage::Infeasible;
+                } else {
+                    self.additional_info = SolveMessage::Optimal;
+                }
+            },
         }
     }
 
     // will set solved=true if the linear program is unbounded
     fn compute_leaving_variable(&mut self) {
+        match self.solve_type {
+            SolveType::Dual => {
+                let mut min = self.b[0].clone();
+                self.leaving_variable_index = 0;
+                for row in 1..self.m {
+                    if self.b[row] < min {
+                        self.leaving_variable_index = row;
+                        min = self.b[row].clone();
+                   }
+                }
 
-        // find the minimum_ratio
-        self.leaving_variable_index = self.m;
-        let mut minimum_ratio = Fraction::from(i64::MAX);
-        for row in 0..self.m {
-            if self.A[self.entering_variable_index][row] <= Fraction::from(0) {
-                // if the entry in A[entering_variable_index] isn't positive, we don't consider it
-                continue;
-            }else if self.b[row].clone()/self.A[self.entering_variable_index][row].clone() < minimum_ratio {
-                // if the current row has a smaller ratio, then we update the minimum ratio.
-                // We use stricly less than, and we check the rows in ascending order, so that in the case of a tie, we take the first ratio we found
-                minimum_ratio = self.b[row].clone()/self.A[self.entering_variable_index][row].clone();
-                self.leaving_variable_index = row;
-            }
-        }
+                if min >= Fraction::from(0) {
+                    self.solved = true;
+                    self.additional_info = SolveMessage::Optimal;
+                }
 
-        if self.leaving_variable_index == self.m {
-            self.solved = true;
-            self.additional_info = SolveMessage::Unbounded;
-        }
+                if self.debug {
+                    match self.solved {
+                        false => {println!("Leaving index: {:?}", self.leaving_variable_index+1);},
+                        true => {println!("Linear program is optimal.");},
+                    }
+                }
+            },
+            _ => {
+                // find the minimum_ratio
+                self.leaving_variable_index = self.m;
+                let mut minimum_ratio = Fraction::from(i64::MAX);
+                for row in 0..self.m {
+                    if self.A[self.entering_variable_index][row] <= Fraction::from(0) {
+                        // if the entry in A[entering_variable_index] isn't positive, we don't consider it
+                        continue;
+                    }else if self.b[row].clone()/self.A[self.entering_variable_index][row].clone() < minimum_ratio {
+                        // if the current row has a smaller ratio, then we update the minimum ratio.
+                        // We use stricly less than, and we check the rows in ascending order, so that in the case of a tie, we take the first ratio we found
+                        minimum_ratio = self.b[row].clone()/self.A[self.entering_variable_index][row].clone();
+                        self.leaving_variable_index = row;
+                    }
+                }
 
-        if self.debug {
-            match self.solved {
-                false => {println!("Minimum ratio: {}\tIndex: {:?}", minimum_ratio, self.leaving_variable_index+1);},
-                true => {println!("Linear program is unbounded.");},
-            }
+                if self.leaving_variable_index == self.m {
+                    self.solved = true;
+                    self.additional_info = SolveMessage::Unbounded;
+                }
+
+                if self.debug {
+                    match self.solved {
+                        false => {println!("Minimum ratio: {}\tLeaving index: {:?}", minimum_ratio, self.leaving_variable_index+1);},
+                        true => {println!("Linear program is unbounded.");},
+                    }
+                }
+            },
         }
     }
 
