@@ -1,4 +1,3 @@
-// test test test
 mod simplex;
 use simplex::tableau::Tableau;
 
