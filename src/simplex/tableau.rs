@@ -151,15 +151,22 @@ impl Tableau {
             }
         }
 
-        // scan to find the rows corresponding to I
-        t.find_basis_indecies();
+        match t.solve_type {
+            SolveType::Dual => {
+                t.setup_dual_tableau();
+            },
+            _ => {
+                // scan to find the rows corresponding to I
+                t.find_basis_indecies();
 
-        // Computing the cost vector corresponding to our basis matrix B
-        t.compute_basis_cost_vector();
+                // Computing the cost vector corresponding to our basis matrix B
+                t.compute_basis_cost_vector();
 
-        // set up our reduced_cost vector and our objective value.
-        // these are updated using our cost basis vector, and doing matrix multiplaction.
-        t.compute_reduced_cost();
+                // set up our reduced_cost vector and our objective value.
+                // these are updated using our cost basis vector, and doing matrix multiplaction.
+                t.compute_reduced_cost();
+            },
+        }
 
         t
     }
@@ -702,6 +709,157 @@ impl Tableau {
             }
             _ => {println!("An error seems to have occured.");}
         }
+    }
+
+    fn setup_dual_tableau(&mut self) {
+        // keep track of which columns of I we have seen, because we don't need to do any pivots on these columns
+        let mut seen = vec![false; self.m];
+        let mut I = vec![Fraction::from(0);self.m];
+        I[0] = Fraction::from(1);
+        for col in 0..self.n {
+            for i in 0..self.m {
+                if I == self.A[col] {
+                    seen[i] = true;
+                    I.rotate_right(1);
+                    continue;
+                }
+                // multiply I by -1, if we have a column corresponding to -I, we can multiply the whole row by -1 to get a column of I
+                I[i] = I[i].clone() * Fraction::from(-1);
+                if I == self.A[col] {
+                    seen[i] = true;
+                    // multiply the whole row by -1
+                    for c in 0..self.n {
+                        self.A[c][i] = self.A[c][i].clone() * Fraction::from(-1);
+                    }
+                    self.b[i] = self.b[i].clone() * Fraction::from(-1);
+                }
+                I[i] = I[i].clone() * Fraction::from(-1);
+                I.rotate_right(1);
+            }
+        }
+
+        if self.debug {
+            print!("Seen: [");
+            for i in 0..self.m-1 {
+                if seen[i] {
+                    print!("true, ");
+                } else {
+                    print!("false, ");
+                }
+            }
+            if seen[self.m-1] {
+                println!("true]");
+            } else {
+                println!("false]");
+            }
+        }
+
+        // calculate our reduced cost row, using a cost basis of zeros.
+        for _ in 0..self.n {
+            self.basis_cost_vector.push(Fraction::from(0));
+        }
+        self.compute_reduced_cost();
+
+        // for each row that corresponds to a column of I that was not found, pivot on any non-zero entry. If the entire row is zero, and b is not zero then the LP is infeasible
+        let mut non_zero_entry_found = false;
+        for row in (0..self.m).rev() {
+            if seen[row] {
+                continue;
+            }
+            // look for the first non-zero entry and pivot
+            for col in 0..self.n {
+                if self.A[col][row] != Fraction::from(0) {
+                    non_zero_entry_found = true;
+                    self.leaving_variable_index = row;
+                    self.entering_variable_index = col;
+                    self.update();
+                    if self.debug {
+                        self.print_table();
+                    }
+                    break;
+                }
+            }
+            // if we didn't find a non-zero entry, the problem is either infeasible, or the constraint is redundant
+            if !non_zero_entry_found {
+                if self.b[row] != Fraction::from(0) {
+                    self.solved = true;
+                    self.additional_info = SolveMessage::Infeasible;
+                    return;
+                } else {
+                    // redundant constraint dropped
+                    for c in 0..self.n {
+                        self.A[c].remove(row);
+                    }
+                    self.m -= 1;
+                }
+            }
+            non_zero_entry_found = false;
+        }
+
+        // we should now have all of our rows corresponding to I
+        if self.debug {
+            self.print_table();
+        }
+        self.find_basis_indecies();
+        if self.debug {
+            print!("Basis cost vector: [");
+            for i in 0..self.m-1 {
+                print!("{}, ", self.basis_cost_vector[i]);
+            }
+            println!("{}]", self.basis_cost_vector[self.m-1]);
+        }
+
+        // if we don't have negative reduced costs, we are done
+        let mut negative_reduced_cost = false;
+        for col in 0..self.n {
+            if self.reduced_cost[col] < Fraction::from(0) {
+                negative_reduced_cost = true;
+                break;
+            }
+        }
+        if !negative_reduced_cost {
+            return;
+        }
+
+        // Add an artificial constraint
+        for col in 0..self.n {
+            if self.basis_indecies.contains(&col) {
+                self.A[col].push(Fraction::from(0));
+            } else {
+                self.A[col].push(Fraction::from(1));
+            }
+        }
+        self.b.push(Fraction::from(1000));
+        self.m += 1;
+
+        // Add an artificial variable for the artificial constraint
+        self.A.push(vec![Fraction::from(0);self.m]);
+        self.A[self.n][self.m-1] = Fraction::from(1);
+        self.reduced_cost.push(Fraction::from(0));
+        self.c.push(Fraction::from(0));
+        self.n += 1;
+        
+        if self.debug {
+            self.print_table();
+        }
+
+        // perform a pivot on the new constraint, selecting the most negative reduced cost
+        let mut most_negative_value = Fraction::from(0);
+        self.entering_variable_index = self.n;
+        for col in 0..self.n {
+            if self.reduced_cost[col] < most_negative_value {
+                if self.debug {
+                    println!("New most negative reduced cost is {} at index {}", self.reduced_cost[col], col);
+                }
+                self.entering_variable_index = col;
+                most_negative_value = Fraction::from(self.reduced_cost[col].clone());
+            }
+        }
+
+        self.original_basis_indecies = None;
+        self.leaving_variable_index = self.m-1;
+        self.basis_indecies.push(self.m-1);
+        self.update();
     }
 
 }
