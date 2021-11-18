@@ -62,7 +62,7 @@ pub struct Tableau {
 }
 
 impl Tableau {
-    pub fn new(A: &Vec<Vec<f64>>, b: &Vec<f64>, c: &Vec<f64>, variable_select_type: String, solve_type: String, big_M_solve_type: String) -> Tableau {
+    pub fn new(A: &[&[f64]], b: &[f64], c: &[f64], variable_select_type: String, solve_type: String, big_M_solve_type: String) -> Tableau {
         // Checks to make sure that the dimensions of our matrices are valid.
         // Will not need this anymore once I get the input from a website. 
         assert_eq!(A.len(), c.len(), "A and c matrices are not compatable. c is 1x{} and A is {}x{}", c.len(), A[0].len(), A.len());
@@ -720,6 +720,7 @@ impl Tableau {
             for i in 0..self.m {
                 if I == self.A[col] {
                     seen[i] = true;
+                    self.basis_indecies[i] = col;
                     I.rotate_right(1);
                     continue;
                 }
@@ -727,6 +728,7 @@ impl Tableau {
                 I[i] = I[i].clone() * Fraction::from(-1);
                 if I == self.A[col] {
                     seen[i] = true;
+                    self.basis_indecies[i] = col;
                     // multiply the whole row by -1
                     for c in 0..self.n {
                         self.A[c][i] = self.A[c][i].clone() * Fraction::from(-1);
@@ -800,7 +802,13 @@ impl Tableau {
         if self.debug {
             self.print_table();
         }
-        self.find_basis_indecies();
+        if self.debug {
+            print!("Basis indecies: [");
+            for i in 0..self.m-1 {
+                print!("{}, ", self.basis_indecies[i]);
+            }
+            println!("{}]", self.basis_indecies[self.m-1]);
+        }
         if self.debug {
             print!("Basis cost vector: [");
             for i in 0..self.m-1 {
